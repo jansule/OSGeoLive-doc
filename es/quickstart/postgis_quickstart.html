@@ -5,13 +5,13 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="es">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Inicio Rápido de PostGIS &#8212; OSGeoLive 13.0 Documentation</title>
+    <title>Inicio Rápido de PostGIS &#8212; OSGeoLive 14.0 Documentation</title>
     <link rel="stylesheet" href="../../_static/overview.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '13.0',
+        VERSION:     '14.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  false,
@@ -93,8 +93,10 @@
 <li><a class="reference internal" href="#importing-spatial-data-into-the-database" id="id7">Importación de datos espaciales a la base de datos</a></li>
 <li><a class="reference internal" href="#get-to-know-pgadmin-iii" id="id8">Conocer pgAdmin III</a></li>
 <li><a class="reference internal" href="#executing-a-sql-query-from-pgadmin-iii" id="id9">Ejecución de una consulta SQL desde pgAdmin III</a></li>
-<li><a class="reference internal" href="#things-to-try" id="id10">Cosas para probar</a></li>
-<li><a class="reference internal" href="#what-next" id="id11">¿Qué sigue?</a></li>
+<li><a class="reference internal" href="#get-to-know-foreign-data-wrappers-fdw" id="id10">Conozca los Contenedores de Datos Externos (FDW)</a></li>
+<li><a class="reference internal" href="#connect-to-a-remote-ogr-data-source-via-ogr-fdw" id="id11">Conéctese a una fuente de datos OGR remota a través de ogr_fdw</a></li>
+<li><a class="reference internal" href="#things-to-try" id="id12">Cosas para probar</a></li>
+<li><a class="reference internal" href="#what-next" id="id13">¿Qué sigue?</a></li>
 </ul>
 </div>
 <div class="section" id="client-server-architecture">
@@ -355,8 +357,105 @@
 <p>Luego, debe presionar el botón de flecha verde, apuntando a la derecha (ejecutar consulta).</p>
 <a class="reference internal image-reference" href="../../_images/postgis_adminscreen2.png"><img alt="pgAdmin III" class="align-center" src="../../_images/postgis_adminscreen2.png" style="width: 768.0px; height: 557.25px;" /></a>
 </div>
+<div class="section" id="get-to-know-foreign-data-wrappers-fdw">
+<h2><a class="toc-backref" href="#id10">Conozca los Contenedores de Datos Externos (FDW)</a><a class="headerlink" href="#get-to-know-foreign-data-wrappers-fdw" title="Enlazar permanentemente con este título">¶</a></h2>
+<p>Desde su base de datos puede acceder a objetos remotos como tablas de otras bases de datos PostgreSQL o conectarse a bases de datos remotas como Oracle, MySQL, MS SQL o CouchDB. También puede conectarse a través de ODBC, conectarse a CSV, datos geoespaciales e incluso a twitter.</p>
+<p>Encontrará una lista de diferentes FDW en:</p>
+<blockquote>
+<div><a class="reference external" href="https://wiki.postgresql.org/wiki/Foreign_data_wrappers">https://wiki.postgresql.org/wiki/Foreign_data_wrappers</a></div></blockquote>
+<p>¡Vamos a ver cómo funciona! La forma más fácil es conectarse a una base de datos PostgreSQL diferente.</p>
+<p>Aquí están los pasos:</p>
+<p>Primero cargue la extensión para el Contenedor de Datos Externos que desea utilizar. Para una conexión a una base de datos PostgreSQL diferente se necesita <code class="docutils literal"><span class="pre">postgres_fdw</span></code></p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">CREATE</span> <span class="n">EXTENSION</span> <span class="n">postgres_fdw</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="admonition tip">
+<p class="first admonition-title">Truco</p>
+<p class="last">Tenga en cuenta que en pgAdmin III los contenedores de datos externos, los servidores externos, las asignaciones de usuarios y las tablas externas no se muestran de forma predeterminada en el árbol. Usted tiene que activarlos a través del menú seleccionando <span class="menuselection">Archivo ‣ Opciones ‣ Navegador ‣ Pantalla</span></p>
+</div>
+<p>Cree un Servidor externo que le indique dónde encontrar el origen de datos que desea conectar</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">CREATE</span> <span class="n">SERVER</span> <span class="n">fdw_pg_server_osm_local</span>
+ <span class="n">FOREIGN</span> <span class="n">DATA</span> <span class="n">WRAPPER</span> <span class="n">postgres_fdw</span>
+ <span class="n">OPTIONS</span> <span class="p">(</span><span class="n">host</span> <span class="s1">&#39;127.0.0.1&#39;</span><span class="p">,</span> <span class="n">port</span> <span class="s1">&#39;5432&#39;</span><span class="p">,</span> <span class="n">dbname</span> <span class="s1">&#39;osm_local&#39;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Defina el usuario que se debe utilizar cuando se conecta al servidor externo</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">CREATE</span> <span class="n">USER</span> <span class="n">MAPPING</span> <span class="n">FOR</span> <span class="n">user</span>
+      <span class="n">SERVER</span> <span class="n">fdw_pg_server_osm_local</span>
+      <span class="n">OPTIONS</span> <span class="p">(</span><span class="n">user</span> <span class="s1">&#39;user&#39;</span><span class="p">,</span> <span class="n">password</span> <span class="s1">&#39;user&#39;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Ahora puede crear una tabla externa.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">IMPORT</span> <span class="n">FOREIGN</span> <span class="n">SCHEMA</span> <span class="n">public</span>
+  <span class="n">LIMIT</span> <span class="n">TO</span> <span class="p">(</span><span class="n">planet_osm_polygon</span><span class="p">,</span> <span class="n">planet_osm_point</span><span class="p">)</span> <span class="o">--</span> <span class="ow">or</span> <span class="n">EXCEPT</span>
+  <span class="n">FROM</span> <span class="n">SERVER</span> <span class="n">fdw_pg_server_osm_local</span>
+  <span class="n">INTO</span> <span class="n">public</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Busque nuevas tablas en la base de datos y eche un vistazo a los datos de una tabla externa.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Select</span> <span class="o">*</span> <span class="kn">from</span> <span class="nn">planet_osm_polygon</span> <span class="n">limit</span> <span class="mi">10</span><span class="p">;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="connect-to-a-remote-ogr-data-source-via-ogr-fdw">
+<h2><a class="toc-backref" href="#id11">Conéctese a una fuente de datos OGR remota a través de ogr_fdw</a><a class="headerlink" href="#connect-to-a-remote-ogr-data-source-via-ogr-fdw" title="Enlazar permanentemente con este título">¶</a></h2>
+<p>La extensión “”ogr_fdw”” permite la conexión de varios formatos de geodatos como KML, GeoPackage, WFS, GeoJSON, GPX, GML y más.</p>
+<p>Leer más sobre <code class="docutils literal"><span class="pre">ogr_fdw</span></code>: * Repository: <a class="reference external" href="https://github.com/pramsey/pgsql-ogr-fdw">https://github.com/pramsey/pgsql-ogr-fdw</a> * Nuevo y mejorado <a class="reference external" href="http://blog.cleverelephant.ca/2016/04/ogr-fdw-update.html">http://blog.cleverelephant.ca/2016/04/ogr-fdw-update.html</a></p>
+<p class="rubric">Instale la extensión <code class="docutils literal"><span class="pre">ogr_fdw</span></code> en su base de datos.</p>
+<p>En el tipo de solicitud de base de datos:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">CREATE</span> <span class="n">EXTENSION</span> <span class="n">ogr_fdw</span><span class="p">;</span>
+</pre></div>
+</div>
+<p class="rubric">Inspeccione qué formatos son compatibles:</p>
+<p>Abra una terminal y busque ogr_fdw_info:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">locate</span> <span class="n">ogr_fdw_info</span>
+<span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">postgresql</span><span class="o">/</span><span class="mi">10</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">ogr_fdw_info</span> <span class="o">-</span><span class="n">f</span>
+</pre></div>
+</div>
+<p>Los resultados podrían lucir de esta manera:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Supported</span> <span class="n">Formats</span><span class="p">:</span>
+ <span class="o">-&gt;</span> <span class="s2">&quot;OGR_GRASS&quot;</span> <span class="p">(</span><span class="n">readonly</span><span class="p">)</span>
+ <span class="o">-&gt;</span> <span class="s2">&quot;PCIDSK&quot;</span> <span class="p">(</span><span class="n">read</span><span class="o">/</span><span class="n">write</span><span class="p">)</span>
+ <span class="o">-&gt;</span> <span class="s2">&quot;netCDF&quot;</span> <span class="p">(</span><span class="n">read</span><span class="o">/</span><span class="n">write</span><span class="p">)</span>
+ <span class="o">-&gt;</span> <span class="s2">&quot;JP2OpenJPEG&quot;</span> <span class="p">(</span><span class="n">readonly</span><span class="p">)</span>
+ <span class="o">-&gt;</span> <span class="s2">&quot;PDF&quot;</span> <span class="p">(</span><span class="n">read</span><span class="o">/</span><span class="n">write</span><span class="p">)</span>
+ <span class="o">-&gt;</span> <span class="s2">&quot;MBTiles&quot;</span> <span class="p">(</span><span class="n">read</span><span class="o">/</span><span class="n">write</span><span class="p">)</span>
+ <span class="o">-&gt;</span> <span class="s2">&quot;EEDA&quot;</span> <span class="p">(</span><span class="n">readonly</span><span class="p">)</span>
+ <span class="o">-&gt;</span> <span class="s2">&quot;ESRI Shapefile&quot;</span> <span class="p">(</span><span class="n">read</span><span class="o">/</span><span class="n">write</span><span class="p">)</span>
+ <span class="o">-&gt;</span> <span class="s2">&quot;MapInfo File&quot;</span> <span class="p">(</span><span class="n">read</span><span class="o">/</span><span class="n">write</span><span class="p">)</span>
+ <span class="o">....</span> <span class="n">many</span> <span class="n">more</span>
+</pre></div>
+</div>
+<p class="rubric">Crear un FDW a un WFS</p>
+<p>Inicie Geoserver a través de <span class="menuselection">Geospatial ‣ Servicios Web ‣ GeoServer ‣  Iniciar GeoServer</span></p>
+<ul class="simple">
+<li>Abrir GeoServer <a class="reference external" href="http://localhost:8082/geoserver/web/">http://localhost:8082/geoserver/web/</a></li>
+<li>GeoServer WFS GetCapabilities <a class="reference external" href="http://localhost:8082/geoserver/ows?service=wfs&amp;version=2.0.0&amp;request=GetCapabilities">http://localhost:8082/geoserver/ows?service=wfs&amp;version=2.0.0&amp;request=GetCapabilities</a></li>
+<li>GeoServer WFS DescribeFeatureType for topp:states
+<a class="reference external" href="http://localhost:8082/geoserver/ows?service=wfs&amp;version=2.0.0&amp;request=DescribeFeatureType&amp;typename=topp:states">http://localhost:8082/geoserver/ows?service=wfs&amp;version=2.0.0&amp;request=DescribeFeatureType&amp;typename=topp:states</a></li>
+<li>GeoServer WFS GetFeature topp:states
+<a class="reference external" href="http://localhost:8082/geoserver/ows?service=wfs&amp;version=2.0.0&amp;request=GetFeature&amp;typename=topp:states">http://localhost:8082/geoserver/ows?service=wfs&amp;version=2.0.0&amp;request=GetFeature&amp;typename=topp:states</a></li>
+</ul>
+<p class="rubric">Cree un servidor externo que se refiera al WFS que desea conectar</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">CREATE</span> <span class="n">SERVER</span> <span class="n">fdw_ogr_server_wfs</span>
+<span class="n">FOREIGN</span> <span class="n">DATA</span> <span class="n">WRAPPER</span> <span class="n">ogr_fdw</span>
+<span class="n">OPTIONS</span> <span class="p">(</span> <span class="n">datasource</span> <span class="s1">&#39;WFS:http://localhost:8082/geoserver/ows&#39;</span><span class="p">,</span> <span class="nb">format</span> <span class="s1">&#39;WFS&#39;</span> <span class="p">);</span>
+</pre></div>
+</div>
+<p class="rubric">Importe todos los feature_types de WFS como tablas externas con un comando.</p>
+<p>Después de la importación, verá varias tablas externas nuevas en el esquema.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">IMPORT</span> <span class="n">FOREIGN</span> <span class="n">SCHEMA</span> <span class="n">ogr_all</span>
+<span class="n">FROM</span> <span class="n">SERVER</span> <span class="n">fdw_ogr_server_wfs</span>
+   <span class="n">INTO</span> <span class="n">public</span><span class="p">;</span>
+</pre></div>
+</div>
+<p class="rubric">Inspeccione la tabla de datos externos  <code class="docutils literal"><span class="pre">topp_states</span></code>:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">SELECT</span> <span class="o">*</span> <span class="n">FROM</span> <span class="n">topp_states</span> <span class="n">WHERE</span> <span class="n">state_name</span> <span class="o">=</span> <span class="s1">&#39;Minnesota&#39;</span><span class="p">;</span>
+</pre></div>
+</div>
+</div>
 <div class="section" id="things-to-try">
-<h2><a class="toc-backref" href="#id10">Cosas para probar</a><a class="headerlink" href="#things-to-try" title="Enlazar permanentemente con este título">¶</a></h2>
+<h2><a class="toc-backref" href="#id12">Cosas para probar</a><a class="headerlink" href="#things-to-try" title="Enlazar permanentemente con este título">¶</a></h2>
 <p>Aquí están algunos retos adicionales para probar:</p>
 <ul class="simple">
 <li>Pruebe algunas otras funciones espaciales como <code class="docutils literal"><span class="pre">st_buffer(geom)</span></code>, <code class="docutils literal"><span class="pre">st_transform(geom,25831)</span></code>, <code class="docutils literal"><span class="pre">st_x(geom)</span></code> - cuya  documentación encontrará completa en <a class="reference external" href="http://postgis.net/documentation/">http://postgis.net/documentation/</a></li>
@@ -367,7 +466,7 @@
 </ul>
 </div>
 <div class="section" id="what-next">
-<h2><a class="toc-backref" href="#id11">¿Qué sigue?</a><a class="headerlink" href="#what-next" title="Enlazar permanentemente con este título">¶</a></h2>
+<h2><a class="toc-backref" href="#id13">¿Qué sigue?</a><a class="headerlink" href="#what-next" title="Enlazar permanentemente con este título">¶</a></h2>
 <p>Esto es sólo el primer paso en el camino a la utilización de PostGIS. Hay mucha más funcionalidad que puede probar.</p>
 <ul class="simple">
 <li>PostGIS Proyecto en casa -  <a class="reference external" href="http://postgis.net">http://postgis.net</a></li>
